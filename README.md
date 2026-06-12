@@ -1,21 +1,16 @@
 # kimi-for-claude
 
-I got tired of prompting Kimi myself. So I built this.
+claude is a genius at managing, but using it for raw coding is a token drain. kimi has claude-level quality for a fraction of the price, but orchestrating both manually is a headache
 
-`kimi-for-claude` is an MCP server that connects [Claude Code](https://claude.ai/code) to the [Kimi CLI](https://moonshotai.github.io/kimi-cli/) — so instead of me switching between two AI tabs and copy-pasting back and forth, Claude just handles it. I tell Claude what I want, Claude figures out what to delegate, sends it to Kimi, and brings back the result. Claude is the manager. Kimi does the work. I just talk to Claude.
+so i built a bridge
+
+claude acts as the supervisor, delegating the heavy coding to kimi in the background. you get claude's brain guiding the project, with kimi's budget-friendly execution
 
 ---
 
 ## What it does
 
-Send Claude a task too large, too tedious, or better run in parallel — Claude hands it off to Kimi with full context, waits for the result (or doesn't), then picks up the conversation. Kimi gets his own workspace, his own tools (shell, file ops, web search, 100+ skills), and runs autonomously.
-
-```
-You → Claude Code → [kimi_delegate] → Kimi CLI → result back to Claude
-                  → [kimi_continue] → follow-up on same session
-                  → [kimi_status]   → check a background job
-                  → [kimi_cancel]   → kill a runaway job
-```
+Send Claude a task too large, too tedious, or better run in parallel, Claude hands it off to Kimi with full context, waits for the result (or doesn't), then picks up the conversation. Kimi gets his own workspace, his own tools (shell, file ops, web search, all skills), and runs autonomously.
 
 ---
 
@@ -33,7 +28,7 @@ Every tool supports:
 - **`readonly`** — Plan mode: Kimi investigates and reports, no writes.
 - **`background`** — Returns a job ID instantly so Claude can keep working in parallel.
 
-Results are truncated at 6k chars by design — Claude asks Kimi to summarize rather than reading full output, keeping token usage lean.
+Results are truncated at 6k chars by design, Claude asks Kimi to summarize rather than reading full output, keeping token usage lean.
 
 ---
 
@@ -50,20 +45,25 @@ Results are truncated at 6k chars by design — Claude asks Kimi to summarize ra
 **1. Clone the repo**
 ```bash
 git clone https://github.com/7D-codes/kimi-for-claude
+cd kimi-for-claude
 ```
 
-**2. Register the MCP server with Claude Code**
+**2. Register with Claude Code**
 ```bash
-claude mcp add --scope user kimi -- uv run --script /path/to/kimi-for-claude/server.py
+claude mcp add --scope user kimi -- uv run --script "$PWD/server.py"
 ```
 
-**3. Verify**
+**3. Verify it connected**
 ```bash
 claude mcp list
 # kimi: uv run --script ... - ✔ Connected
 ```
 
-Start a new Claude Code session — `kimi_delegate`, `kimi_continue`, `kimi_status`, and `kimi_cancel` will be in Claude's toolbox.
+**4. Start a new Claude Code session** — the tools won't appear in your current session, only new ones.
+
+That's it. `kimi_delegate`, `kimi_continue`, `kimi_status`, and `kimi_cancel` are now in Claude's toolbox.
+
+> npm package coming soon.
 
 ---
 
