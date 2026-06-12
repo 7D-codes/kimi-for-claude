@@ -1,43 +1,102 @@
-# kimi-mcp
+# kimi-for-claude
 
-MCP server that lets Claude Code delegate tasks to the [Kimi CLI](https://moonshotai.github.io/kimi-cli/) agent. Claude is the manager; Kimi is the worker.
+Give Claude Code a second brain. This MCP server connects [Claude Code](https://claude.ai/code) to the [Kimi CLI](https://moonshotai.github.io/kimi-cli/) — so Claude can delegate tasks to Kimi, iterate back and forth, and run jobs in the background while staying focused on what it's doing.
 
-Design principle: save the manager's tokens. Results are truncated at 6k chars, file changes come back as a one-line git summary (not a diff), and Claude is expected to ask Kimi questions via `kimi_continue` instead of reading his artifacts in full.
+Claude manages. Kimi executes.
 
-## How it works
+---
 
-`server.py` is a single-file FastMCP stdio server (PEP 723 inline deps, run by `uv`). It shells out to:
+## What it does
+
+Send Claude a task too large, too tedious, or better run in parallel — Claude hands it off to Kimi with full context, waits for the result (or doesn't), then picks up the conversation. Kimi gets his own workspace, his own tools (shell, file ops, web search, 100+ skills), and runs autonomously.
 
 ```
-kimi --print --final-message-only (--yolo | --plan) -p "<task>" [-w dir] [-m model] [-C]
+You → Claude Code → [kimi_delegate] → Kimi CLI → result back to Claude
+                  → [kimi_continue] → follow-up on same session
+                  → [kimi_status]   → check a background job
+                  → [kimi_cancel]   → kill a runaway job
 ```
+
+---
 
 ## Tools
 
-- **`kimi_delegate(task, work_dir?, model?, timeout_seconds=600, readonly=False, background=False)`** — fresh autonomous session. `readonly` = plan mode (investigate, don't write). `background` = returns a job id immediately.
-- **`kimi_continue(prompt, work_dir?, ...)`** — follow-up on the most recent session in that work_dir (kimi `-C`).
-- **`kimi_status(job_id?)`** — list background jobs, or collect one's result.
-- **`kimi_cancel(job_id)`** — kill a running job.
+| Tool | What it does |
+|------|-------------|
+| `kimi_delegate` | Start a fresh Kimi session with a task. Returns Kimi's final answer. |
+| `kimi_continue` | Follow up on Kimi's last session — ask him to summarize, fix, or extend without re-explaining context. |
+| `kimi_status` | List background jobs or collect a finished one's result. |
+| `kimi_cancel` | Kill a running job. |
 
-If `work_dir` is a git repo, results end with `[git: N file(s) changed during task: ...]` computed from before/after `git status --porcelain` snapshots.
+Every tool supports:
+- **`work_dir`** — Kimi's workspace. If it's a git repo, results include a one-line summary of files he changed.
+- **`readonly`** — Plan mode: Kimi investigates and reports, no writes.
+- **`background`** — Returns a job ID instantly so Claude can keep working in parallel.
+
+Results are truncated at 6k chars by design — Claude asks Kimi to summarize rather than reading full output, keeping token usage lean.
+
+---
+
+## Requirements
+
+- [Claude Code](https://claude.ai/code)
+- [Kimi CLI](https://moonshotai.github.io/kimi-cli/) installed and authenticated (`kimi login`)
+- Python 3.10+ and [uv](https://github.com/astral-sh/uv)
+
+---
 
 ## Setup
 
-Registered at user scope:
+**1. Clone the repo**
+```bash
+git clone https://github.com/7D-codes/kimi-for-claude
+```
+
+**2. Register the MCP server with Claude Code**
+```bash
+claude mcp add --scope user kimi -- uv run --script /path/to/kimi-for-claude/server.py
+```
+
+**3. Verify**
+```bash
+claude mcp list
+# kimi: uv run --script ... - ✔ Connected
+```
+
+Start a new Claude Code session — `kimi_delegate`, `kimi_continue`, `kimi_status`, and `kimi_cancel` will be in Claude's toolbox.
+
+---
+
+## Usage examples
+
+**Delegate a task**
+> "Have Kimi write all the unit tests for this module while you review the architecture."
+
+**Research in parallel**
+> "Ask Kimi to find the best approach for rate-limiting in Redis — summarize when done."
+
+**Iterate**
+> Claude delegates → reviews Kimi's output → `kimi_continue` to request fixes → done.
+
+**Background job**
+> Claude fires off a long build task to Kimi with `background=true`, keeps working, checks `kimi_status` when convenient.
+
+---
+
+## How it works
+
+`server.py` is a single-file [FastMCP](https://github.com/jlowin/fastmcp) stdio server with inline dependencies (PEP 723), run by `uv` — no install step, no virtualenv to manage. It shells out to:
 
 ```
-claude mcp add --scope user kimi -- uv run --script /home/toro/projects/kimi-mcp/server.py
+kimi --print --final-message-only (--yolo | --plan) -p "<task>" [-w dir] [-C]
 ```
 
-After editing server.py, restart the server: `/mcp` → reconnect kimi (or start a new session). Remove with `claude mcp remove kimi -s user`.
+Kimi runs with `--yolo` (auto-approves his own tool calls). The safety gate is Claude Code's permission prompt on each MCP tool call — you see every task before it reaches Kimi.
 
-## Notes / limits
+---
 
-- Background jobs live in the server process: they're lost if the session ends, and Claude is not notified on completion — it must poll `kimi_status`.
-- One job per work_dir at a time (kimi `-C` sessions are tracked per directory).
-- Non-readonly runs use `--yolo`; the safety gate is Claude Code's permission prompt on the MCP call itself.
-- Kimi auth comes from `~/.kimi/`. Test manually: `kimi --quiet -p "hello"`.
+## Remove
 
-## Ideas not built yet
-
-Transcript/audit tool (kimi `export` / `--output-format stream-json`), session-id addressing (multiple parallel sessions per dir), worktree isolation, custom worker personas via `--agent-file`, MCP passthrough to give Kimi extra tools, usage/quota visibility.
+```bash
+claude mcp remove kimi -s user
+```
