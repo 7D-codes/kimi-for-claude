@@ -1,8 +1,8 @@
 # kimi-for-claude
 
-Give Claude Code a second brain. This MCP server connects [Claude Code](https://claude.ai/code) to the [Kimi CLI](https://moonshotai.github.io/kimi-cli/) — so Claude can delegate tasks to Kimi, iterate back and forth, and run jobs in the background while staying focused on what it's doing.
+I got tired of prompting Kimi myself. So I built this.
 
-Claude manages. Kimi executes.
+`kimi-for-claude` is an MCP server that connects [Claude Code](https://claude.ai/code) to the [Kimi CLI](https://moonshotai.github.io/kimi-cli/) — so instead of me switching between two AI tabs and copy-pasting back and forth, Claude just handles it. I tell Claude what I want, Claude figures out what to delegate, sends it to Kimi, and brings back the result. Claude is the manager. Kimi does the work. I just talk to Claude.
 
 ---
 
